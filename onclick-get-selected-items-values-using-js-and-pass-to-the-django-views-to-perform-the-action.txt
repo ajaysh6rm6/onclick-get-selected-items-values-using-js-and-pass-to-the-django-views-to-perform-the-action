@@ -1,0 +1,165 @@
+>>>ONCLICK GET SELECTED ITEMS VALUES USING JS AND PASS TO THE DJANGO VIEWS TO PERFORM THE ACTION
+
+>>>HTML
+>>button
+<button type="submit" id="shipping" data-sid="shipping" class="btn btn-success click" disabled>
+    <span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"
+            class="feather feather-plus me-50 font-small-4">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>ready for shipping</span>
+</button>
+
+>>TABLE
+<div class="table-responsive">
+    <table class="table table-hover" id="dtBasicExample" style="width:100%">
+        <thead>
+          
+            <tr>
+              <th>
+                  <!-- select all checkbox -->
+                  <div class="form-check d-inline">
+                      <input class="form-check-input" type="checkbox" id="option-all">Order Id
+                      <!-- end select all checkbox -->
+                  </div>
+              </th>
+
+             
+              <th>Serial</th>
+              <th>Name</th>
+              <th>LineItem SKU</th>
+              <th>Quantity</th>
+              <th>Status</th>
+             
+              <!-- <th>LineItem SKU</th>
+              <th>Quantity</th>
+              <th>Total</th>
+              <th>Scheduled</th>
+              <th>Production</th>
+              <th>Ready for dispatch</th> -->
+
+                
+            </tr>
+        </thead>
+        <tbody>                                     
+
+          {% for i in result %}
+            <tr>
+              <td>
+                  <form action="" method="post">                                                   
+                      <div class="form-check d-inline">
+                          {% csrf_token %}
+                          <input class="form-check-input" style="margin-left: 1.75;" type="checkbox"  name="getSelectedIds" value="{{i.id}}"  id="flexCheckDefault">{{i.orderid}}
+                      </div>
+                  </form>                                            
+              </td>
+              
+              <!-- <td>{{i.lineItemSKU}}</td>
+              <td>{{i.quantity}}</td>
+              <td>{{i.total}}</td>
+              <td>{{i.scheduled}}</td>
+              <td>{{i.production}}</td>
+              <td>{{i.readyfordispatch}}</td> -->
+              
+               <td>{{i.serial}}</td>
+               <td>{{i.name}}</td>
+               <td>{{i.lineitemsku}}</td>
+             
+              <td>{{i.quantity}}</td>
+              
+              <td>{{i.status}}</td>
+            
+          </tr>
+            {% endfor %}                                   
+           
+        </tbody>
+    </table>
+</div>
+
+
+>>>JS
+<script>
+	//ONCLICK GET SELECTED ITEMS VALUES AND BUTTON ATTR VALUES ["data-sid"] AND CALL URL USING AJAX ["{% url 'genProduction' %}"]
+    $(document).ready(function() {
+        $(".click").click(function() {
+            var production = $("input[name='getSelectedIds']:checked").map(function() {
+                return this.value;
+            }).get().join(',');
+            let csr = $("input[name=csrfmiddlewaretoken").val();
+            let status = $(this).attr("data-sid");
+            mydata = {
+                production: JSON.stringify(production),
+                csrfmiddlewaretoken: csr,
+                status : status,
+            };
+
+            $.ajax({
+                url: "{% url 'genProduction' %}",
+                method: "POST",
+                data: mydata,
+                success: function(data) {
+                    window.location.reload();
+                },
+            });
+
+        });
+    });
+
+	//ONCHECKED ENABLE/DISABLE BUTTON [".form-check-input"]
+    var mycheckboxes = $(".form-check-input"),
+    submitButt = $("button[type='submit']");
+    mycheckboxes.on('change',function() {
+    if (mycheckboxes.is(":checked")) {
+        submitButt.prop('disabled', false);
+    } else {
+        submitButt.prop('disabled', true);
+    }
+	
+	// ONCHECKED SELECT ALL CHECKBOXES
+	const selectAll = document.querySelector('#option-all'),
+    checkboxList = document.querySelectorAll('[type="checkbox"]');
+	selectAll.addEventListener('change', t => {
+		checkboxList.forEach(e => {
+		e.checked = t.target.checked;
+		});
+	});
+  
+});
+</script>
+
+
+>>>URL
+path('genProduction/',views.genProduction,name="genProduction"),
+
+
+>>>DJANGO VIEWS
+def genProduction(request):
+    if request.method == "POST":
+        productionlist = request.POST.get('production').replace('"','').split(',')
+        status = request.POST.get('status')
+        if status == "production":
+            objs = []
+            for prod in productionlist:
+                obj = LineItems.objects.filter(id=prod).first()
+                obj.ProductionStatus = 'production'
+                objs.append(obj) 
+            LineItems.objects.bulk_update(objs,['ProductionStatus'],batch_size=100)   
+            return JsonResponse({'msg':'Product in production'})
+        elif status == "shipping":
+            objs = []
+            for prod in productionlist:
+                obj = LineItems.objects.filter(id=prod).first()
+                obj.ProductionStatus = 'shipping'
+                objs.append(obj) 
+            LineItems.objects.bulk_update(objs,['ProductionStatus'],batch_size=100)   
+            return JsonResponse({'msg':'Product shipped'}) 
+        elif status == "scheduled":
+            objs = []
+            for prod in productionlist:
+                obj = LineItems.objects.filter(id=prod).first()
+                obj.ProductionStatus = 'scheduled'
+                objs.append(obj) 
+            LineItems.objects.bulk_update(objs,['ProductionStatus'],batch_size=100)   
+            return JsonResponse({'msg':'Product scheduled'}) 
